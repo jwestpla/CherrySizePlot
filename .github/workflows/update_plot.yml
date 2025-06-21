@@ -36,4 +36,4 @@ jobs:
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
           local-dir: ./  # Adjust if your plot is in a subdir
-          server-dir: /public_html/path/to/your/plot/
+          server-dir: /public_html/
