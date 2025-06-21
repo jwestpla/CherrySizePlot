@@ -30,7 +30,7 @@ jobs:
         run: python Cherry_plot_updater/Cherry_plot_update.py
 
       - name: Upload plot to FTP
-        uses: sebastianpopp/ftp-action@v1
+        uses: sebastianpopp/ftp-action@master
         with:
           host: ${{ secrets.FTP_HOST }}
           user: ${{ secrets.FTP_USER }}
