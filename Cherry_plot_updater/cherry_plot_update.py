@@ -181,5 +181,5 @@ fig.update_layout(
 )
 
 # --- Show or export ---
-fig.show()
-# fig.write_html("cherry_growth_plot.html", include_plotlyjs='cdn')
+#fig.show()
+fig.write_html("cherry_growth_plot.html", include_plotlyjs='cdn')
