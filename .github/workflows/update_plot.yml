@@ -30,10 +30,10 @@ jobs:
         run: python Cherry_plot_updater/Cherry_plot_update.py
 
       - name: Upload plot to FTP
-        uses: sebastianpopp/ftp-action@master
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          host: ${{ secrets.FTP_HOST }}
-          user: ${{ secrets.FTP_USER }}
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
-          localDir: ./
-          remoteDir: /public_html/path/to/your/plot
+          local-dir: ./  # Adjust if your plot is in a subdir
+          server-dir: /public_html/path/to/your/plot/
