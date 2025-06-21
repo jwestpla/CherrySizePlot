@@ -27,7 +27,7 @@ jobs:
           gdown --id 1EdVCBcDVvejNhifkps9n132LYgLStyjv -O berekeningen.docx
 
       - name: Run script
-        run: python Cherry_plot_updater/Cherry_plot_update.py
+        run: python Cherry_plot_updater/cherry_plot_update.py
 
       - name: Upload plot to FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
