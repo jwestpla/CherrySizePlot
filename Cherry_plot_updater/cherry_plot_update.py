@@ -70,7 +70,7 @@ for variety_name, df in varieties.items():
         showlegend=True
     ))
     traces.append(len(fig.data) - 1)
-    # TEST
+    # TEST2
     # Add all other years
     for col in df.columns[1:]:
         if col == year_col_2025:
