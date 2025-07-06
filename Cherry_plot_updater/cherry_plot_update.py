@@ -6,6 +6,7 @@ import plotly.express as px
 from docx import Document
 import itertools
 import re
+import matplotlib.pyplot as plt  # For normalization
 
 
 # --- Step 1: Download the docx from Google Drive ---
@@ -57,20 +58,38 @@ for variety_name, df in varieties.items():
     df_2025 = df[["Uke", year_col_2025]].dropna()
     traces = []
 
-    # Add 2025 trace
-    fig.add_trace(go.Scatter(
-        x=df_2025["Uke"],
-        y=df_2025[year_col_2025],
-        mode='lines+markers',
-        name="2025",
-        line=dict(color='black', width=4),
-        marker=dict(size=10, symbol="circle", line=dict(width=2, color='white')),
-        hovertemplate="Size: %{y:.1f} mm<extra>2025</extra>",
-        visible=False,
-        showlegend=True
-    ))
-    traces.append(len(fig.data) - 1)
-    # TEST2
+    # Compute derivative
+    dy = df_2025[year_col_2025].diff()
+    dx = df_2025["Uke"].diff()
+    derivative = dy / dx
+
+    # Normalize derivative for color scale
+    norm = plt.Normalize(vmin=0, vmax=4)  # Expecting range from 0 to 4
+    colorscale = px.colors.diverging.RdYlGn  # Red = low, Green = high
+
+    # Add all 2025 colored segments
+    num_segments = len(df_2025) - 1
+    for i in range(1, len(df_2025)):
+        val = derivative.iloc[i]
+        color_index = min(int(norm(val) * (len(colorscale) - 1)), len(colorscale) - 1)
+        color = colorscale[color_index]
+        fig.add_trace(go.Scatter(
+            x=df_2025["Uke"].iloc[i-1:i+1],
+            y=df_2025[year_col_2025].iloc[i-1:i+1],
+            mode="lines+markers",
+            line=dict(color=color, width=4),
+            marker=dict(size=10, color=color),
+            showlegend=False,
+            visible=False,
+            hovertemplate=(
+                f"Uke: %{{x}}<br>"
+                f"Størrelse: %{{y:.1f}} mm<br>"
+                f"Vekstrate: {val:.2f} mm/uke<br>"
+                f"---------------"
+                "<extra></extra>"
+            )
+        ))
+        traces.append(len(fig.data) - 1)
     # Add all other years
     for col in df.columns[1:]:
         if col == year_col_2025:
@@ -82,7 +101,7 @@ for variety_name, df in varieties.items():
             name=col,
             line=dict(color=next(color_iter), width=2),
             marker=dict(size=8, symbol="circle", line=dict(width=1, color='white')),
-            hovertemplate=f"Size: %{{y:.1f}} mm<extra>{col}</extra>",
+            hovertemplate=f"Størrelse: %{{y:.1f}} mm<extra>{col}</extra>",
             visible=False,
             showlegend=True
         ))
@@ -106,27 +125,32 @@ for variety_name, df in varieties.items():
         x=weeks,
         y=mean_vals,
         mode='lines',
-        name="Mean (excl. 2025)",
+        name="Gj.snitt (uten 2025)",
+        hovertemplate="Uke: %{x}<br>Gj.snitt: %{y:.1f} mm <extra></extra>",
         line=dict(color='black', width=2, dash='dash'),
         visible=False
     ))
     traces.append(len(fig.data) - 1)
 
-    trace_metadata.append((variety_name, traces))
+    trace_metadata.append((variety_name, traces, num_segments))
 
 # --- Build dropdown buttons ---
-for variety_name, trace_ids in trace_metadata:
+for variety_name, trace_ids, num_segments in trace_metadata:
     visibility = [False] * len(fig.data)
-    visibility[trace_ids[0]] = True  # show 2025
-    for idx in trace_ids[1:]:        # keep rest in legend only
+
+    # Show all 2025 segment traces
+    for idx in trace_ids[:num_segments]:
+        visibility[idx] = True
+
+    # Set other years and mean to legendonly
+    for idx in trace_ids[num_segments:]:
         visibility[idx] = "legendonly"
 
     buttons.append(dict(
         label=variety_name,
         method="update",
         args=[
-            {"visible": visibility},
-            {"title": f"{variety_name} (2015): Growth by Year"}
+            {"visible": visibility}
         ]
     ))
 
@@ -141,13 +165,12 @@ fig.update_layout(
         y=1,
         yanchor="top"
     )],
-    title="Bellise (2015): Growth by Year",
     font=dict(family="Arial", size=18),
     width=1000,
     height=650,
     margin=dict(l=80, r=40, t=80, b=60),
     xaxis=dict(
-        title="Week Number",
+        title="Ukenummer",
         showline=True,
         linewidth=2,
         linecolor='black',
@@ -160,7 +183,7 @@ fig.update_layout(
         tickformat='d'
     ),
     yaxis=dict(
-        title="Size (mm)",
+        title="Størrelse (mm)",
         range=[12, 31],
         dtick=1,
         showgrid=True,
@@ -182,4 +205,4 @@ fig.update_layout(
 
 # --- Show or export ---
 #fig.show()
-fig.write_html("cherry_growth_plot.html", include_plotlyjs='cdn')
+fig.write_html("cherry_growth_data.html", include_plotlyjs='cdn')
