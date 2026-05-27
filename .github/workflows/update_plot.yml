@@ -2,8 +2,8 @@ name: Update Cherry Plot
 
 on:
   schedule:
-    - cron: '0 16 * * 6'  # Every Monday at 07:00 UTC
-  workflow_dispatch:     # Also allow manual trigger
+    - cron: '0 16 * * 6'  # Saturday 18:00 CEST
+  workflow_dispatch:     # Allows manual run
 
 jobs:
   build:
@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -22,18 +22,19 @@ jobs:
         run: |
           pip install gdown pandas numpy plotly python-docx matplotlib
 
-      - name: Download metingen.docx from Google Drive
-        run: |
-          gdown --id 1EdVCBcDVvejNhifkps9n132LYgLStyjv -O old_stuff/KersenMetingen/metingen.docx
-
+      # Python handles the gdown natively inside its working-directory
       - name: Run script
-        run: python Cherry_plot_updater/cherry_plot_update.py
+        working-directory: ./Cherry_plot_updater
+        run: python cherry_plot_update.py
 
       - name: Upload plot to FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
-          local-dir: ./  # Adjust if your plot is in a subdir
+          local-dir: ./Cherry_plot_updater/
           server-dir: /public_html/
+          exclude: |
+            **/*
+            !cherry_growth_data.html
