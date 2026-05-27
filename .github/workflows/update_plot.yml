@@ -24,7 +24,7 @@ jobs:
 
       - name: Download berekeningen.docx from Google Drive
         run: |
-          gdown --id 1EdVCBcDVvejNhifkps9n132LYgLStyjv -O old_stuff/KersenMetingen/berekeningen.docx
+          gdown --id 1EdVCBcDVvejNhifkps9n132LYgLStyjv -O old_stuff/KersenMetingen/metingen.docx
 
       - name: Run script
         run: python Cherry_plot_updater/cherry_plot_update.py
