@@ -38,13 +38,13 @@ def clean_cherry_table(df_raw):
 
 # --- Load and clean tables ---
 varieties = {
-    "Bellise": clean_cherry_table(extract_table("berekeningen.docx", 0)),
-    "Van": clean_cherry_table(extract_table("berekeningen.docx", 1)),
-    "Lapins 2009": clean_cherry_table(extract_table("berekeningen.docx", 2)),
-    "Lapins 2015": clean_cherry_table(extract_table("berekeningen.docx", 3)),
-    "Tamara 2019": clean_cherry_table(extract_table("berekeningen.docx", 4)),
-    "Sweetheart 2009": clean_cherry_table(extract_table("berekeningen.docx", 5)),
-    "Sweetheart 2015": clean_cherry_table(extract_table("berekeningen.docx", 6)),
+    "Bellise": clean_cherry_table(extract_table("metingen.docx", 0)),
+    "Van": clean_cherry_table(extract_table("metingen.docx", 1)),
+    "Lapins 2009": clean_cherry_table(extract_table("metingen.docx", 2)),
+    "Lapins 2015": clean_cherry_table(extract_table("metingen.docx", 3)),
+    "Tamara 2019": clean_cherry_table(extract_table("metingen.docx", 4)),
+    "Sweetheart 2009": clean_cherry_table(extract_table("metingen.docx", 5)),
+    "Sweetheart 2015": clean_cherry_table(extract_table("metingen.docx", 6)),
 }
 
 # --- Build all traces up front ---
