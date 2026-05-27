@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt  # For normalization
 
 
 # --- Step 1: Download the docx from Google Drive ---
-ile_id = "1EdVCBcDVvejNhifkps9n132LYgLStyjv"
+file_id = "1EdVCBcDVvejNhifkps9n132LYgLStyjv"
 output_path = "metingen.docx"  # Changed from berekeningen.docx
 gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
