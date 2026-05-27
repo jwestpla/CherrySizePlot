@@ -8,15 +8,10 @@ import itertools
 import re
 import matplotlib.pyplot as plt  # For normalization
 
-
 # --- Step 1: Download the docx from Google Drive ---
 file_id = "1EdVCBcDVvejNhifkps9n132LYgLStyjv"
-output_path = "metingen.docx"  # Changed from berekeningen.docx
+output_path = "metingen.docx"
 gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
-
-
-# --- Load the document ---
-doc = Document("metingen.docx")  
 
 # --- Utility functions ---
 def extract_table(doc_path, index):
@@ -36,7 +31,7 @@ def clean_cherry_table(df_raw):
         df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
-# --- Load and clean tables ---
+# --- Load historical tables ---
 varieties = {
     "Bellise": clean_cherry_table(extract_table("metingen.docx", 0)),
     "Van": clean_cherry_table(extract_table("metingen.docx", 1)),
@@ -47,6 +42,42 @@ varieties = {
     "Sweetheart 2015": clean_cherry_table(extract_table("metingen.docx", 6)),
 }
 
+# --- Extract and Parse the separate 2026 Table ---
+# According to your doc, Table 7 is "Tilvekst tabell 2025" and Table 8 is "Tilvekst tabell 2026"
+df_2026_raw = extract_table("metingen.docx", 8)
+df_2026_raw.columns = ["Variety"] + df_2026_raw.iloc[0, 1:].tolist()
+df_2026_raw = df_2026_raw.iloc[1:]
+
+# Map document names to your dictionary keys
+name_mapping = {
+    "Bellise": "Bellise",
+    "Van": "Van",
+    "Lapins 09": "Lapins 2009",
+    "Lapins 15": "Lapins 2015",
+    "Tamara": "Tamara 2019",
+    "Sweetheart 09": "Sweetheart 2009",
+    "Sweetheart 15": "Sweetheart 2015"
+}
+
+# Inject the 2026 data column into the historical variety dataframes
+for doc_name, dict_key in name_mapping.items():
+    # Find row for this variety in the 2026 growth rate table
+    variety_row = df_2026_raw[df_2026_raw["Variety"].str.contains(doc_name, na=False, case=False)]
+    if not variety_row.empty:
+        # Build a temporary dataframe for the 2026 sizes
+        weeks_2026 = []
+        sizes_2026 = []
+        for col in df_2026_raw.columns[1:]:
+            wk_num = int(re.search(r'\d+', col).group())
+            val = variety_row[col].values[0].replace(',', '.')
+            weeks_2026.append(wk_num)
+            sizes_2026.append(pd.to_numeric(val, errors='coerce'))
+        
+        df_new = pd.DataFrame({"Uke": weeks_2026, "2026": sizes_2026})
+        
+        # Merge the new 2026 column back into the historical dataframe
+        varieties[dict_key] = pd.merge(varieties[dict_key], df_new, on="Uke", how="outer")
+
 # --- Build all traces up front ---
 fig = go.Figure()
 buttons = []
@@ -54,45 +85,54 @@ trace_metadata = []
 
 for variety_name, df in varieties.items():
     color_iter = itertools.cycle(px.colors.qualitative.Set2)
-    year_col_2026 = next(col for col in df.columns if "2026" in str(col))
-    df_2026 = df[["Uke", year_col_2026]].dropna()
+    
+    # Check if 2026 exists after merge, otherwise fall back to 2025 safely
+    if "2026" in df.columns:
+        year_col = "2026"
+    else:
+        year_col = "2025"
+        
+    df_current = df[["Uke", year_col]].dropna()
     traces = []
 
     # Compute derivative
-    dy = df_2026[year_col_2026].diff()
-    dx = df_2026["Uke"].diff()
-    derivative = dy / dx
+    num_segments = 0
+    if len(df_current) > 1:
+        dy = df_current[year_col].diff()
+        dx = df_current["Uke"].diff()
+        derivative = dy / dx
 
-    # Normalize derivative for color scale
-    norm = plt.Normalize(vmin=0, vmax=4)  # Expecting range from 0 to 4
-    colorscale = px.colors.diverging.RdYlGn  # Red = low, Green = high
+        norm = plt.Normalize(vmin=0, vmax=4)
+        colorscale = px.colors.diverging.RdYlGn
 
-    # Add all 2026 colored segments
-    num_segments = len(df_2026) - 1
-    for i in range(1, len(df_2026)):
-        val = derivative.iloc[i]
-        color_index = min(int(norm(val) * (len(colorscale) - 1)), len(colorscale) - 1)
-        color = colorscale[color_index]
-        fig.add_trace(go.Scatter(
-            x=df_2026["Uke"].iloc[i-1:i+1],
-            y=df_2026[year_col_2026].iloc[i-1:i+1],
-            mode="lines+markers",
-            line=dict(color=color, width=4),
-            marker=dict(size=10, color=color),
-            showlegend=False,
-            visible=False,
-            hovertemplate=(
-                f"Uke: %{{x}}<br>"
-                f"Størrelse: %{{y:.1f}} mm<br>"
-                f"Vekstrate: {val:.2f} mm/uke<br>"
-                f"---------------"
-                "<extra></extra>"
-            )
-        ))
-        traces.append(len(fig.data) - 1)
-    # Add all other years
+        num_segments = len(df_current) - 1
+        for i in range(1, len(df_current)):
+            val = derivative.iloc[i]
+            if pd.isna(val):
+                val = 0
+            color_index = min(int(norm(val) * (len(colorscale) - 1)), len(colorscale) - 1)
+            color = colorscale[color_index]
+            fig.add_trace(go.Scatter(
+                x=df_current["Uke"].iloc[i-1:i+1],
+                y=df_current[year_col].iloc[i-1:i+1],
+                mode="lines+markers",
+                line=dict(color=color, width=4),
+                marker=dict(size=10, color=color),
+                showlegend=False,
+                visible=False,
+                hovertemplate=(
+                    f"Uke: %{{x}}<br>"
+                    f"Størrelse: %{{y:.1f}} mm<br>"
+                    f"Vekstrate: {val:.2f} mm/uke<br>"
+                    f"---------------"
+                    "<extra></extra>"
+                )
+            ))
+            traces.append(len(fig.data) - 1)
+
+    # Add all other background years
     for col in df.columns[1:]:
-        if col == year_col_2026:
+        if col == year_col:
             continue
         fig.add_trace(go.Scatter(
             x=df["Uke"],
@@ -107,13 +147,9 @@ for variety_name, df in varieties.items():
         ))
         traces.append(len(fig.data) - 1)
 
-    # --- Add MEAN only (no std dev) ---
-# Drop 2026 and any column that doesn't look like a year
-    year_columns = [col for col in df.columns[1:]
-                if re.match(r"^\s*20\d{2}", str(col)) and "2026" not in str(col)]
-
+    # Add historical mean baseline line
+    year_columns = [col for col in df.columns[1:] if re.match(r"^\s*20\d{2}", str(col)) and col != year_col]
     df_subset = df[year_columns]
-
     valid_counts = df_subset.count(axis=1)
     mean_series = df_subset.mean(axis=1).where(valid_counts >= 2)
 
@@ -125,7 +161,7 @@ for variety_name, df in varieties.items():
         x=weeks,
         y=mean_vals,
         mode='lines',
-        name="Gj.snitt (uten 2026)",
+        name=f"Gj.snitt (uten {year_col})",
         hovertemplate="Uke: %{x}<br>Gj.snitt: %{y:.1f} mm <extra></extra>",
         line=dict(color='black', width=2, dash='dash'),
         visible=False
@@ -137,21 +173,15 @@ for variety_name, df in varieties.items():
 # --- Build dropdown buttons ---
 for variety_name, trace_ids, num_segments in trace_metadata:
     visibility = [False] * len(fig.data)
-
-    # Show all 2026 segment traces
     for idx in trace_ids[:num_segments]:
         visibility[idx] = True
-
-    # Set other years and mean to legendonly
     for idx in trace_ids[num_segments:]:
         visibility[idx] = "legendonly"
 
     buttons.append(dict(
         label=variety_name,
         method="update",
-        args=[
-            {"visible": visibility}
-        ]
+        args=[{"visible": visibility}]
     ))
 
 # --- Layout configuration ---
@@ -160,49 +190,17 @@ fig.update_layout(
         buttons=buttons,
         direction="down",
         showactive=True,
-        x=1.02,
-        xanchor="left",
-        y=1,
-        yanchor="top"
+        x=1.02, xanchor="left", y=1, yanchor="top"
     )],
     font=dict(family="Arial", size=18),
-    width=1000,
-    height=650,
+    width=1000, height=650,
     margin=dict(l=80, r=40, t=80, b=60),
-    xaxis=dict(
-        title="Ukenummer",
-        showline=True,
-        linewidth=2,
-        linecolor='black',
-        ticks="outside",
-        tickwidth=2,
-        ticklen=8,
-        mirror=True,
-        dtick=1,
-        tickmode='linear',
-        tickformat='d'
-    ),
-    yaxis=dict(
-        title="Størrelse (mm)",
-        range=[12, 31],
-        dtick=1,
-        showgrid=True,
-        gridcolor='lightgray',
-        gridwidth=1,
-        showline=True,
-        linewidth=2,
-        linecolor='black',
-        ticks="outside",
-        tickwidth=2,
-        ticklen=8,
-        mirror=True
-    ),
+    xaxis=dict(title="Ukenummer", showline=True, linewidth=2, linecolor='black', ticks="outside", dtick=1, tickmode='linear', tickformat='d'),
+    yaxis=dict(title="Størrelse (mm)", range=[12, 31], dtick=1, showgrid=True, gridcolor='lightgray', showline=True, linewidth=2, linecolor='black', ticks="outside"),
     legend_title="Year",
     hovermode="x unified",
     hoverlabel=dict(font_size=14, namelength=0),
     transition=dict(duration=300, easing="cubic-in-out")
 )
 
-# --- Show or export ---
-#fig.show()
 fig.write_html("cherry_growth_data.html", include_plotlyjs='cdn')
