@@ -57,40 +57,62 @@ for variety_name, df in varieties.items():
     year_col_2026 = next(col for col in df.columns if "2026" in str(col))
     df_2026 = df[["Uke", year_col_2026]].dropna()
     traces = []
+    
+    num_traces_added = 0
 
-    # Compute derivative
-    dy = df_2026[year_col_2026].diff()
-    dx = df_2026["Uke"].diff()
-    derivative = dy / dx
+    # Scenario 1: We have 2 or more data points -> Draw color-coded line segments
+    if len(df_2026) > 1:
+        dy = df_2026[year_col_2026].diff()
+        dx = df_2026["Uke"].diff()
+        derivative = dy / dx
 
-    # Normalize derivative for color scale
-    norm = plt.Normalize(vmin=0, vmax=4)  # Expecting range from 0 to 4
-    colorscale = px.colors.diverging.RdYlGn  # Red = low, Green = high
+        norm = plt.Normalize(vmin=0, vmax=4)  
+        colorscale = px.colors.diverging.RdYlGn  
 
-    # Add all 2026 colored segments
-    num_segments = len(df_2026) - 1
-    for i in range(1, len(df_2026)):
-        val = derivative.iloc[i]
-        color_index = min(int(norm(val) * (len(colorscale) - 1)), len(colorscale) - 1)
-        color = colorscale[color_index]
+        for i in range(1, len(df_2026)):
+            val = derivative.iloc[i]
+            color_index = min(int(norm(val) * (len(colorscale) - 1)), len(colorscale) - 1)
+            color = colorscale[color_index]
+            fig.add_trace(go.Scatter(
+                x=df_2026["Uke"].iloc[i-1:i+1],
+                y=df_2026[year_col_2026].iloc[i-1:i+1],
+                mode="lines+markers",
+                line=dict(color=color, width=4),
+                marker=dict(size=10, color=color),
+                showlegend=False,
+                visible=False,
+                hovertemplate=(
+                    f"Uke: %{{x}}<br>"
+                    f"Størrelse: %{{y:.1f}} mm<br>"
+                    f"Vekstrate: {val:.2f} mm/uke<br>"
+                    f"---------------"
+                    "<extra></extra>"
+                )
+            ))
+            traces.append(len(fig.data) - 1)
+            num_traces_added += 1
+
+    # Scenario 2: We only have 1 data point -> Plot it as a single distinct point
+    elif len(df_2026) == 1:
         fig.add_trace(go.Scatter(
-            x=df_2026["Uke"].iloc[i-1:i+1],
-            y=df_2026[year_col_2026].iloc[i-1:i+1],
-            mode="lines+markers",
-            line=dict(color=color, width=4),
-            marker=dict(size=10, color=color),
+            x=df_2026["Uke"],
+            y=df_2026[year_col_2026],
+            mode="markers",
+            marker=dict(size=12, color="green", line=dict(width=1.5, color="black")),
             showlegend=False,
             visible=False,
             hovertemplate=(
                 f"Uke: %{{x}}<br>"
                 f"Størrelse: %{{y:.1f}} mm<br>"
-                f"Vekstrate: {val:.2f} mm/uke<br>"
+                f"Vekstrate: Ingen data ennå<br>"
                 f"---------------"
                 "<extra></extra>"
             )
         ))
         traces.append(len(fig.data) - 1)
-    # Add all other years
+        num_traces_added += 1
+
+    # Add all other historical background years
     for col in df.columns[1:]:
         if col == year_col_2026:
             continue
@@ -107,8 +129,7 @@ for variety_name, df in varieties.items():
         ))
         traces.append(len(fig.data) - 1)
 
-    # --- Add MEAN only (no std dev) ---
-    # Drop 2026 and any column that doesn't look like a year
+    # --- Add MEAN baseline ---
     year_columns = [col for col in df.columns[1:]
                 if re.match(r"^\s*20\d{2}", str(col)) and "2026" not in str(col)]
 
@@ -132,18 +153,19 @@ for variety_name, df in varieties.items():
     ))
     traces.append(len(fig.data) - 1)
 
-    trace_metadata.append((variety_name, traces, num_segments))
+    # Pass the total count of 2026 traces (whether segments or a single dot) to visibility handler
+    trace_metadata.append((variety_name, traces, num_traces_added))
 
 # --- Build dropdown buttons ---
-for variety_name, trace_ids, num_segments in trace_metadata:
+for variety_name, trace_ids, num_traces_added in trace_metadata:
     visibility = [False] * len(fig.data)
 
-    # Show all 2026 segment traces
-    for idx in trace_ids[:num_segments]:
+    # Show the current 2026 trace entries
+    for idx in trace_ids[:num_traces_added]:
         visibility[idx] = True
 
-    # Set other years and mean to legendonly
-    for idx in trace_ids[num_segments:]:
+    # Set historical years and running average line to legendonly
+    for idx in trace_ids[num_traces_added:]:
         visibility[idx] = "legendonly"
 
     buttons.append(dict(
@@ -203,5 +225,4 @@ fig.update_layout(
     transition=dict(duration=300, easing="cubic-in-out")
 )
 
-# --- Save file ---
 fig.write_html("cherry_growth_data.html", include_plotlyjs='cdn')
