@@ -22,7 +22,7 @@ jobs:
         run: |
           pip install gdown pandas numpy plotly python-docx matplotlib
 
-      - name: Download berekeningen.docx from Google Drive
+      - name: Download metingen.docx from Google Drive
         run: |
           gdown --id 1EdVCBcDVvejNhifkps9n132LYgLStyjv -O old_stuff/KersenMetingen/metingen.docx
 
