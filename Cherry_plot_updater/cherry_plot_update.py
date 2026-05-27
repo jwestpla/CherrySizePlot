@@ -54,28 +54,28 @@ trace_metadata = []
 
 for variety_name, df in varieties.items():
     color_iter = itertools.cycle(px.colors.qualitative.Set2)
-    year_col_2025 = next(col for col in df.columns if "2025" in str(col))
-    df_2025 = df[["Uke", year_col_2025]].dropna()
+    year_col_2026 = next(col for col in df.columns if "2026" in str(col))
+    df_2026 = df[["Uke", year_col_2026]].dropna()
     traces = []
 
     # Compute derivative
-    dy = df_2025[year_col_2025].diff()
-    dx = df_2025["Uke"].diff()
+    dy = df_2026[year_col_2026].diff()
+    dx = df_2026["Uke"].diff()
     derivative = dy / dx
 
     # Normalize derivative for color scale
     norm = plt.Normalize(vmin=0, vmax=4)  # Expecting range from 0 to 4
     colorscale = px.colors.diverging.RdYlGn  # Red = low, Green = high
 
-    # Add all 2025 colored segments
-    num_segments = len(df_2025) - 1
-    for i in range(1, len(df_2025)):
+    # Add all 2026 colored segments
+    num_segments = len(df_2026) - 1
+    for i in range(1, len(df_2026)):
         val = derivative.iloc[i]
         color_index = min(int(norm(val) * (len(colorscale) - 1)), len(colorscale) - 1)
         color = colorscale[color_index]
         fig.add_trace(go.Scatter(
-            x=df_2025["Uke"].iloc[i-1:i+1],
-            y=df_2025[year_col_2025].iloc[i-1:i+1],
+            x=df_2026["Uke"].iloc[i-1:i+1],
+            y=df_2026[year_col_2026].iloc[i-1:i+1],
             mode="lines+markers",
             line=dict(color=color, width=4),
             marker=dict(size=10, color=color),
@@ -92,7 +92,7 @@ for variety_name, df in varieties.items():
         traces.append(len(fig.data) - 1)
     # Add all other years
     for col in df.columns[1:]:
-        if col == year_col_2025:
+        if col == year_col_2026:
             continue
         fig.add_trace(go.Scatter(
             x=df["Uke"],
@@ -108,9 +108,9 @@ for variety_name, df in varieties.items():
         traces.append(len(fig.data) - 1)
 
     # --- Add MEAN only (no std dev) ---
-# Drop 2025 and any column that doesn't look like a year
+# Drop 2026 and any column that doesn't look like a year
     year_columns = [col for col in df.columns[1:]
-                if re.match(r"^\s*20\d{2}", str(col)) and "2025" not in str(col)]
+                if re.match(r"^\s*20\d{2}", str(col)) and "2026" not in str(col)]
 
     df_subset = df[year_columns]
 
@@ -125,7 +125,7 @@ for variety_name, df in varieties.items():
         x=weeks,
         y=mean_vals,
         mode='lines',
-        name="Gj.snitt (uten 2025)",
+        name="Gj.snitt (uten 2026)",
         hovertemplate="Uke: %{x}<br>Gj.snitt: %{y:.1f} mm <extra></extra>",
         line=dict(color='black', width=2, dash='dash'),
         visible=False
@@ -138,7 +138,7 @@ for variety_name, df in varieties.items():
 for variety_name, trace_ids, num_segments in trace_metadata:
     visibility = [False] * len(fig.data)
 
-    # Show all 2025 segment traces
+    # Show all 2026 segment traces
     for idx in trace_ids[:num_segments]:
         visibility[idx] = True
 
